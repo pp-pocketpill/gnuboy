@@ -30,11 +30,11 @@ static SDL_Surface *gb_screen;
 static SDL_Overlay *overlay;
 static SDL_Rect overlay_rect;
 
-static int vmode[3] = { 0, 0, 16 };
+static int vmode[3] = { 240, 240, 16 };
 
 rcvar_t vid_exports[] =
 {
-	RCV_VECTOR("vmode", &vmode, 3, "video mode: w h bpp"),
+	//RCV_VECTOR("vmode", &vmode, 3, "video mode: w h bpp"),
 	RCV_BOOL("yuv", &use_yuv, "try to use hardware YUV scaling"),
 	RCV_BOOL("fullscreen", &fullscreen, "whether to start in fullscreen mode"),
 	RCV_BOOL("altenter", &use_altenter, "alt-enter can toggle fullscreen"),
@@ -62,54 +62,6 @@ static int mapscancode(SDLKey sym)
 
 static void overlay_init()
 {
-	if (!use_yuv) return;
-
-	if (use_yuv < 0)
-		if (vmode[0] < 320 || vmode[1] < 288)
-			return;
-
-	overlay = SDL_CreateYUVOverlay(320, 144, SDL_YUY2_OVERLAY, screen);
-
-	if (!overlay) return;
-
-	if (!overlay->hw_overlay || overlay->planes > 1)
-	{
-		SDL_FreeYUVOverlay(overlay);
-		overlay = 0;
-		return;
-	}
-
-	SDL_LockYUVOverlay(overlay);
-
-	fb.w = 160;
-	fb.h = 144;
-	fb.pelsize = 4;
-	fb.pitch = overlay->pitches[0];
-	fb.ptr = overlay->pixels[0];
-	fb.yuv = 1;
-	fb.cc[0].r = fb.cc[1].r = fb.cc[2].r = fb.cc[3].r = 0;
-	fb.dirty = 1;
-	fb.enabled = 1;
-
-	overlay_rect.x = 0;
-	overlay_rect.y = 0;
-	overlay_rect.w = vmode[0];
-	overlay_rect.h = vmode[1];
-
-	/* Color channels are 0=Y, 1=U, 2=V, 3=Y1 */
-	switch (overlay->format)
-	{
-		/* FIXME - support more formats */
-	case SDL_YUY2_OVERLAY:
-	default:
-		fb.cc[0].l = 0;
-		fb.cc[1].l = 24;
-		fb.cc[2].l = 8;
-		fb.cc[3].l = 16;
-		break;
-	}
-
-	SDL_UnlockYUVOverlay(overlay);
 }
 
 void vid_init()
