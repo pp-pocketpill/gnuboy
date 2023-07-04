@@ -30,7 +30,7 @@ static SDL_Surface *gb_screen;
 static SDL_Overlay *overlay;
 static SDL_Rect overlay_rect;
 
-static int vmode[3] = { 240, 240, 32 };
+static int vmode[3] = { 240, 240, 16 };
 
 rcvar_t vid_exports[] =
 {
@@ -221,30 +221,31 @@ static const uint8_t scale_table[160] = {0,1,3,4,6,7,9,10,12,13,15,16,18,19,21,2
 
 void flip_fast_scale(SDL_Surface *virtual_screen, SDL_Surface *hardware_screen){
 	uint8_t nx, ny, x, y;
-	uint32_t *source_pixel, *target_pixel;
+	uint16_t *source_pixel, *target_pixel;
 	for (y = 0; y < 144; y ++) {
 		ny = scale_table[y] + 12;
 		for (x = 0; x < 160; x++) {
 			nx = scale_table[x];
-			source_pixel = (uint32_t*) ((uint8_t *) virtual_screen->pixels + y * virtual_screen->pitch + x * virtual_screen->format->BytesPerPixel);
-			target_pixel = (uint32_t*) ((uint8_t *) hardware_screen->pixels + ny * hardware_screen->pitch + nx * hardware_screen->format->BytesPerPixel);
+			source_pixel = (uint16_t*) ((uint8_t *) virtual_screen->pixels + y * virtual_screen->pitch + x * virtual_screen->format->BytesPerPixel);
+			target_pixel = (uint16_t*) ((uint8_t *) hardware_screen->pixels + ny * hardware_screen->pitch + nx * hardware_screen->format->BytesPerPixel);
 			
 			*target_pixel = *source_pixel;
-			/*
+			
 			if (x & 1) {
-				target_pixel = (uint32_t*) ((uint8_t *) hardware_screen->pixels + ny * hardware_screen->pitch + (nx+1) * hardware_screen->format->BytesPerPixel);
+				target_pixel = (uint16_t*) ((uint8_t *) hardware_screen->pixels + ny * hardware_screen->pitch + (nx+1) * hardware_screen->format->BytesPerPixel);
 				*target_pixel = *source_pixel;
 			}
 			
 			if (y & 1) {
-				target_pixel = (uint32_t*) ((uint8_t *) hardware_screen->pixels + (ny+1) * hardware_screen->pitch + nx * hardware_screen->format->BytesPerPixel);
+				target_pixel = (uint16_t*) ((uint8_t *) hardware_screen->pixels + (ny+1) * hardware_screen->pitch + nx * hardware_screen->format->BytesPerPixel);
 				*target_pixel = *source_pixel;
 			}
 			if (x & 1 && y & 1) {
-				target_pixel = (uint32_t*) ((uint8_t *) hardware_screen->pixels + (ny+1) * hardware_screen->pitch + (nx+1) * hardware_screen->format->BytesPerPixel);
+				target_pixel = (uint16_t*) ((uint8_t *) hardware_screen->pixels + (ny+1) * hardware_screen->pitch + (nx+1) * hardware_screen->format->BytesPerPixel);
 				*target_pixel = *source_pixel;
 			}
-			*/
+			
+			
 		}
 	}
 
