@@ -26,6 +26,7 @@ static int fullscreen = 0;
 static int use_altenter = 1;
 
 static SDL_Surface *screen;
+static SDL_Surface *gb_screen;
 static SDL_Overlay *overlay;
 static SDL_Rect overlay_rect;
 
@@ -133,6 +134,8 @@ void vid_init()
 
 	if (!(screen = SDL_SetVideoMode(vmode[0], vmode[1], vmode[2], flags)))
 		die("SDL: can't set video mode: %s\n", SDL_GetError());
+	
+	gb_screen = SDL_CreateRGBSurface(SDL_SWSURFACE, 160, 144, vmode[2], 0, 0, 0, 0);
 
 	SDL_ShowCursor(0);
 
@@ -140,22 +143,22 @@ void vid_init()
 
 	if (fb.yuv) return;
 
-	SDL_LockSurface(screen);
+	SDL_LockSurface(gb_screen);
 
-	fb.w = screen->w;
-	fb.h = screen->h;
-	fb.pelsize = screen->format->BytesPerPixel;
-	fb.pitch = screen->pitch;
+	fb.w = gb_screen->w;
+	fb.h = gb_screen->h;
+	fb.pelsize = gb_screen->format->BytesPerPixel;
+	fb.pitch = gb_screen->pitch;
 	fb.indexed = fb.pelsize == 1;
-	fb.ptr = screen->pixels;
-	fb.cc[0].r = screen->format->Rloss;
-	fb.cc[0].l = screen->format->Rshift;
-	fb.cc[1].r = screen->format->Gloss;
-	fb.cc[1].l = screen->format->Gshift;
-	fb.cc[2].r = screen->format->Bloss;
-	fb.cc[2].l = screen->format->Bshift;
+	fb.ptr = gb_screen->pixels;
+	fb.cc[0].r = gb_screen->format->Rloss;
+	fb.cc[0].l = gb_screen->format->Rshift;
+	fb.cc[1].r = gb_screen->format->Gloss;
+	fb.cc[1].l = gb_screen->format->Gshift;
+	fb.cc[2].r = gb_screen->format->Bloss;
+	fb.cc[2].l = gb_screen->format->Bshift;
 
-	SDL_UnlockSurface(screen);
+	SDL_UnlockSurface(gb_screen);
 
 	fb.enabled = 1;
 	fb.dirty = 0;
@@ -210,7 +213,7 @@ void vid_setpal(int i, int r, int g, int b)
 
 	col.r = r; col.g = g; col.b = b;
 
-	SDL_SetColors(screen, &col, i, 1);
+	SDL_SetColors(gb_screen, &col, i, 1);
 }
 
 void vid_preinit()
@@ -242,8 +245,8 @@ void vid_begin()
 		fb.ptr = overlay->pixels[0];
 		return;
 	}
-	SDL_LockSurface(screen);
-	fb.ptr = screen->pixels;
+	SDL_LockSurface(gb_screen);
+	fb.ptr = gb_screen->pixels;
 }
 
 void vid_end()
@@ -255,14 +258,42 @@ void vid_end()
 			SDL_DisplayYUVOverlay(overlay, &overlay_rect);
 		return;
 	}
-	SDL_UnlockSurface(screen);
+	SDL_UnlockSurface(gb_screen);
+
+	flip_fast_scale(gb_screen, screen);
+
 	if (fb.enabled) SDL_Flip(screen);
 }
 
+static const uint8_t scale_table[160] = {0,1,3,4,6,7,9,10,12,13,15,16,18,19,21,22,24,25,27,28,30,31,33,34,36,37,39,40,42,43,45,46,48,49,51,52,54,55,57,58,60,61,63,64,66,67,69,70,72,73,75,76,78,79,81,82,84,85,87,88,90,91,93,94,96,97,99,100,102,103,105,106,108,109,111,112,114,115,117,118,120,121,123,124,126,127,129,130,132,133,135,136,138,139,141,142,144,145,147,148,150,151,153,154,156,157,159,160,162,163,165,166,168,169,171,172,174,175,177,178,180,181,183,184,186,187,189,190,192,193,195,196,198,199,201,202,204,205,207,208,210,211,213,214,216,217,219,220,222,223,225,226,228,229,231,232,234,235,237,238};
 
+void flip_fast_scale(SDL_Surface *virtual_screen, SDL_Surface *hardware_screen){
+	uint8_t nx, ny, x, y;
+	uint16_t v;
+	uint32_t *source_pixel, *target_pixel;
+	for (y = 0; y < 144; y ++) {
+		ny = scale_table[y] + 12;
+		for (x = 0; x < 160; x++) {
+			nx = scale_table[x];
+			source_pixel = (uint32_t*) ((uint8_t *) virtual_screen->pixels + y * virtual_screen->pitch + x * virtual_screen->format->BytesPerPixel);
+			target_pixel = (uint32_t*) ((uint8_t *) hardware_screen->pixels + ny * hardware_screen->pitch + nx * hardware_screen->format->BytesPerPixel);
+			
+			*target_pixel = *source_pixel;
 
+			if (x & 1) {
+				target_pixel = (uint32_t*) ((uint8_t *) hardware_screen->pixels + ny * hardware_screen->pitch + (nx+1) * hardware_screen->format->BytesPerPixel);
+				*target_pixel = *source_pixel;
+			}
+			
+			if (y & 1) {
+				target_pixel = (uint32_t*) ((uint8_t *) hardware_screen->pixels + (ny+1) * hardware_screen->pitch + nx * hardware_screen->format->BytesPerPixel);
+				*target_pixel = *source_pixel;
+			}
+			if (x & 1 && y & 1) {
+				target_pixel = (uint32_t*) ((uint8_t *) hardware_screen->pixels + (ny+1) * hardware_screen->pitch + (nx+1) * hardware_screen->format->BytesPerPixel);
+				*target_pixel = *source_pixel;
+			}
+		}
+	}
 
-
-
-
-
+}
